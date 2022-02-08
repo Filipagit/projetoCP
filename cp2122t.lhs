@@ -145,15 +145,11 @@
 
 \begin{center}\large
 \begin{tabular}{ll}
-\textbf{Grupo} nr. & 99 (preencher)
+\textbf{Grupo} nr. & 3
 \\\hline
-a11111 & Nome1 (preencher)
+a90234 & Filipa Rebelo
 \\
-a22222 & Nome2 (preencher)
-\\
-a33333 & Nome3 (preencher)
-\\
-a44444 & Nome4 (preencher, se aplicável, ou apagar)
+a87956 & Joana Oliveira
 \end{tabular}
 \end{center}
 
@@ -1143,34 +1139,130 @@ Valoriza-se a escrita de \emph{pouco} código que corresponda a soluções
 simples e elegantes.
 
 \subsection*{Problema 1} \label{pg:P1}
+
+\par Para chegar à definição do outNEList usamos a definição do inNEList, como é possível ver de seguida.
+
+\begin{eqnarray*}
+\start
+       | outNEList . inNEList = id |
+\just{|<=>|}{ Definição de in }
+       |outNEList . (either singl cons) = id |
+\just{|<=>|}{ lei 20 do formulario}
+       |either (outNEList.singl) (outNEList.cons)=id |
+\just{|<=>|}{lei 17 do formulario}
+       |lcbr(id.i1=outNEList.singl) (id.i2=outNEList.cons)|
+\just{|<=>|}{ lei 1 do formulario}
+        |lcbr(i1=outNEList.singl) (i2=outNEList.cons)|
+\just{|<=>|}{ lei 71 e 72 do formulario}
+        |lcbr (i1 a = outNEList.(singl a)) (i2(h,t)=outNEList.(cons(a,t)))|
+\just{|<=>|}{cons(a,b) = a:b ; singl a = [a] }
+        |lcbr (i1 a = outNEList.a) (i2(h,t)=outNEList.(h:t)) |                                
+\end{eqnarray*}
+
 Listas vazias:
 \begin{code}
-outNEList [a]   = undefined
-outNEList (h:t) = undefined
+outNEList [a]   = i1 (a)
+outNEList (h:t) = i2 (h,t)
 
-baseNEList f g = undefined
+baseNEList f g = f -|- (f >< g)
 
-recNEList  f   = undefined
+recNEList  f   = id -|- (id >< f)
 
-cataNEList g   = undefined
+cataNEList g   = g . recNEList (cataNEList g) . outNEList
 
-anaNEList  g   = undefined
+anaNEList  g   = inNEList . recNEList (anaNEList g) . g
 
-hyloNEList h g = undefined
+hyloNEList h g = cataNEList h . anaNEList g
 \end{code}
 Gene do anamorfismo:
 \begin{code}
-g_list2LTree = undefined
+g_list2LTree = (id -|- aux) . outNEList where 
+     aux (h,t) = splitAt (div (length (h:t)) 2) (h:t)
 \end{code}
+
+Foi desenhado o diagrama do anamorfismo de modo a conseguirmos perceber melhor o nosso objetivo.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |LTree A|
+&
+    |A| + |(LTree A)|^{2}
+           \ar[l]_-{|inLTree|}
+\\
+     |A|^{*}   
+           \ar[u]_-{|(anaList (g))|}
+           \ar[r]^-{|g|}
+&
+     |A| + (|A|^{*})^{2}
+           \ar[u]^{|id| + |(anaList (g))|^{2}}
+}
+\end{eqnarray*}
+
+\par Assim sendo, foi possível chegar à conclusão de que o gene do anamorfismo devia criar criar um tuplo com duas listas, no caso em que recebe uma lista com mais do que um argumento. Posto isto, recorremos então à função \emph{splitAt}, que nos permitiu dividir a lista original em duas e criar o tuplo correspondente. Esta lista é sempre dividida a meio de modo a permitir que a árvore criada seja equilibrada.\\
+
 Gene do catamorfismo:
 \begin{code}
 g_lTree2MTree :: Hashable c => Either c (FTree Integer (Integer, c), FTree Integer (Integer, c)) -> FTree Integer (Integer, c)
-g_lTree2MTree = undefined
+g_lTree2MTree = either g1 g2 where
+     g1 x = Unit (toInteger(Data.Hashable.hash x), x)
+     g2 (Unit (h1,x1), Unit (h2,x2)) = Comp (concHash (h1,h2)) (Unit (h1,x1), Unit (h2,x2))
+     g2 (Unit (h1,x1), Comp h2 ts2) = Comp (concHash (h1,h2)) (Unit (h1,x1), Comp h2 ts2)
+     g2 (Comp h1 ts1, Unit (h2,x2)) = Comp (concHash (h1,h2)) (Unit (h2,x2), Comp h1 ts1)
+     g2 (Comp h1 ts1, Comp h2 ts2) = Comp (concHash (h1,h2)) (Comp h1 ts1, Comp h2 ts2) 
 \end{code}
+
+Tal como anteriormente baseamos também a nossa resolução num diagrama.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |LTree A|
+           \ar[d]_-{|cataLTree g|}
+&
+    |A| + |(LTree A)|^2
+           \ar[d]^{|id| + |(cataLTree g)|^{2}}
+           \ar[l]_-{|inLTree|}
+\\
+     |FTree Integer (Integer, A)|
+&
+     |A| + |(FTree Integer (Integer, A))|^{2}
+           \ar[l]^-{|g|}
+}
+\end{eqnarray*}
+
+\par A partir deste foi possível perceber que podemos receber apenas um elemento do tipo A, que será então depois transformado em \emph{FTree}, utilizando o tipo \emph{Unit}. E além disso, podemos também receber pares de \emph{FTree}, que se deverão juntar e dar então como resultado uma nova \emph{FTree}.\\
+
 Gene de |mroot| ("get Merkle root"):
 \begin{code}
-g_mroot = undefined
+g_mroot = firsts
 \end{code}
+
+\par Mais uma vez apoiamos a nossa resolução num diagrama de maneira a descobrirmos o gene de \emph{mroot}.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |FTree Integer (Integer, A)|
+           \ar[d]_-{|cataFTree g|}
+&
+    |(Integer, A)| + |Integer| \times |(FTree Integer (Integer, A))|^{2}
+           \ar[d]^{|id + id| \times |(cataFTree g)|^{2}}
+           \ar[l]_-{|inFTree|}
+\\
+     |Integer|
+&
+     |(Integer, A)| + |Integer| \times |Integer|^{2}
+           \ar[l]^-{|g|}
+}
+\end{eqnarray*}
+
+\par Daqui, conseguimos perceber então o que o catamorfismo irá receber como alternativas. Do lado esquerdo, temos a informação que está contida na raíz da árvore, sendo esta um tuplo com o hash e a transação associada. Do lado direito, temos o resultado recursivo de aplicar a função \emph{mroot} às sub-árvores e também o valor que se encontra na sua raíz. Assim sendo, em ambos os casos, o que iremos querer retirar irá ser sempre o que se encontra no lado esquerdo do tuplo da alternativa esquerda. Para tal, decidimos então que faria sentido definir como gene a função \emph{firsts}, uma vez que esta nos permite, numa alternativa, retirar o elemento do lado esquerdo e, de seguida retirar o elemento do lado esquerdo que lá se encontra, obtendo-se assim a \emph{Merkle root} da árvore resultante.
+
+\paragraph{Alínea 1.4:}
+\par No algoritmo de construção de uma \emph{Merkle Tree} cada nodo contém a soma das transações dos filhos.
+A \emph{mroot} permite verificar rapidamente se uma transação específica ocorreu, em um determinado bloco, com a maior precisão possível.
+Se algum valor da transação for alterado, o valor da \emph{mroot} também será alterado, pois esta contém a soma de todo o bloco de transações.
+Assim, basta alterar-se apenas um valor para que os valores dos seus pais sejam também alterados.
+Conclui-se assim que funcionam como uma blockchain em que, quando se altera a cadeia, os blocos a esta ligados serão alterados.\\
+
 Valorização:
 
 \begin{code}
@@ -1195,23 +1287,108 @@ conquer = either head joinMerkleTree where
 \subsection*{Problema 2}
 
 \begin{code}
+
 wc_w_final :: [Char] -> Int
 wc_w_final = wrapper . worker
+
 worker = cataList (either g1 g2)
-wrapper = undefined
+
+wrapper = p2
+
 \end{code}
 Gene de |worker|:
 \begin{code}
-g1 = undefined
-g2 = undefined
+g1 = split (const True) (const 0)
+g2 = split (sep.p1) (cond((uncurry(&&)).((not.sep)><p1))(succ.p2.p2)(p2.p2))
+    where sep c = (c == ' ' || c=='\n' || c== '\t')
+
 \end{code}
 Genes |h = either h1 h2| e |k = either k1 k2| identificados no cálculo:
 \begin{code}
-h1 = undefined
-h2 = undefined
+h1 = (const True)
+h2 = (sep.p1)
 
-k1 = undefined
+k1 = (const 0)
 k2 = undefined
+\end{code}
+
+|k2= (cond ((uncurry(&&)).((not.sep)><p1)) (succ.p2.p2) (p2.p2))|\\
+
+\par Para resolver este problema começamos por customizar a lei de recursividade mútua, para facilitar a compreensão do raciocínio alteramos o nome da função \emph{lookaheadsep} para \emph{ls} e da \emph{wc w} para \emph{wc}
+
+\begin{eqnarray*}
+\start
+       |lcbr (f.in = h.F(split f g)) (g.in = k.F(split f g)) |  
+\just{|<=>|}{ |in = (either nil cons)|, |F f| = |id + id >< f| }
+       |lcbr(f.(either nil cons) = h.( id + id >< (split f g))) (g.(either nil cons) = k.( id + id >< (split f g))) | 
+\just{|<=>|}{ f = ls, g = wc, h = [h1,h2], k = [k1,k2] }
+       |lcbr(ls.(either nil cons) = (either h1 h2).(id + id >< (split ls wc))) (wc.(either nil cons) = (either k1 k2).(id + id >< (split ls wc))) |  
+\end{eqnarray*}
+
+\par Neste ponto é necessário customizar a função \emph{ls} e \emph{wc} de modo a conseguir aplicar a lei de \emph{Fokkinga}.
+\par Pelo enunciado temos:
+\begin{eqnarray*}
+\start
+       |lcbr (ls.[] = True) (ls.(c:l) = sep c) |
+\just{|<=>|}{ [] = nil, (c:l) = cons(c,l) }
+\end{eqnarray*}   
+ 
+\par Aplicando a lei (27) do formulário,
+\begin{eqnarray*}
+\start
+       |either (ls.nil) (ls.cons)  = either True sep |
+\just{|<=>|}{ Definição in, Lei (20)}
+       |ls.in= either True (sep.fst) |
+\just{|<=>|}{ Lei (1) }
+       |ls.in= either (True.id) (sep.id.fst) | 
+\just{|<=>|}{ Lei (12)}   
+       |ls.in= either (True.id) ((sep.fst).( id >< (split ls wc))) |   
+\just{|<=>|}{ Lei (22)}   
+       |ls.in= (either True (sep.fst)).(id + id >< (split ls wc))) |             
+\end{eqnarray*}
+
+\par Neste ponto falta apenas customizar a função \emph{wc} para aplicar a lei de \emph{Fokkinga}.
+\par Pelo enunciado temos:
+
+\begin{eqnarray*}
+\start
+       |lcbr (wc.nil =(const 0)) (wc.cons = (uncurry(&&)).(split((not.sep).p1)(ls.snd))->(succ.wc.p2) ,(wc.p2) |
+\just{|<=>|}{ Lei (11)}  
+       |lcbr (wc.nil =(const 0)) (wc.cons = (uncurry(&&)).((not.sep)><ls).(split p1 p2)->(succ.wc.p2),(wc.p2) |
+\just{|<=>|}{ Lei (8)}  
+       |lcbr (wc.nil =(const 0)) (wc.cons = (uncurry(&&)).((not.sep)><ls)->(succ.wc.p2),(wc.p2)) |
+\just{|<=>|}{ Lei (27)} 
+       |(either (wc.nil)(wc.cons)) = (either (const 0) ((uncurry(&&)).((not.sep)><ls)->(succ.wc.p2),(wc.p2)))|
+\just{|<=>|}{ Lei (20)}
+       |wc.(either nil cons) =  (either (const 0) ((uncurry(&&)).((not.sep)><ls)->(succ.wc.p2),(wc.p2)))|
+\just{|<=>|}{ Definição de in }
+       |wc.in = (either (const 0) ((uncurry(&&)).((not.sep)><ls)->(succ.wc.p2),(wc.p2)))|     
+\just{|<=>|}{ Lei (7), wc = |snd. (split ls wc )|, ls = |fst.(split ls wc)|}
+       |wc.in = either (const 0) ((uncurry(&&).(not.sep >< p1.(split(ls)(wc))))-> (succ.p2.(split(ls)(wc).p2)),(p2.(split(ls)(wc).p2)) ) |
+\just{|<=>|}{ Lei (14), Lei(13)}
+|wc.in = either (const 0) ( (uncurry(&&).(not.sep >< p1).(id >< (split(ls)(wc))))-> (succ.p2.p2.(id >< split(ls)(wc))), (p2.p2.(id >< split(ls)(wc)) ) |
+\just{|<=>|}{ Lei (32)}
+       |wc.in = either (const 0) (((uncurry(&&).(not.sep >< p1))-> (succ.p2.p2) ,(p2.p2) ).(id >< split(ls)(wc)) ) |
+\just{|<=>|}{ Lei (22)}
+       |wc.in = either (const 0) ((uncurry(&&).(not.sep >< p1)) ->(succ.p2.p2),(p2.p2) ).(id + (id >< split(ls)(wc)) ) |
+\end{eqnarray*}
+
+\par Neste ponto reunimos todas as condições para aplicar a lei de \emph{Fokkinga}.
+
+\begin{eqnarray*}
+\start
+        |lcbr (ls.nil = True) (ls.cons=(sep.p1).(id + (id >< split(ls)(wc) )))|
+\just={}     
+        |lcbr (wc.nil = (const 0)) (wc.cons= (uncurry(&&).(not.sep >< p1)) ) -> (succ.p2.p2, p2.p2).(id + (id >< split(ls)(wc)) ))|
+\just={ Lei (50)}
+        |split(ls)(wc) = cataList( split (either (True) (sep.p1))  ( either (const 0) (uncurry(&&).(not.sep >< p1) -> succ.p2.p2, p2.p2) )|
+\just={ Lei (28)}
+        |split(ls)(wc) = cataList(either( split (True)(const 0) ) ( split (sep.p1) (uncurry(&&).(not.sep >< p1) -> succ.p2.p2, p2.p2) ) ) |
+\end{eqnarray*}
+
+\begin{code}
+prop_wc_w :: String -> Bool
+prop_wc_w s = wc_w s == wc_w_final s
 \end{code}
 
 \subsection*{Problema 3}
@@ -1241,14 +1418,64 @@ Inserir a partir daqui o resto da resolução deste problema:
 \begin{code}
 pairL :: [a] -> [(a,a)]
 pairL = anaList g where
-  g = undefined
+  g = (id -|- (split (pairFirstTwo.cons) f2)).outList where
+     pairFirstTwo [x] = (x,x)
+     pairFirstTwo (a:b:as) = (a,b)
+     f2 (h,t) = if length t == 1 then [] else t
 \end{code}
+
+Para descobrir o gene do anamorfismo, começamos por desenhar o diagrama correspondente.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |[(a,a)]|
+&
+    1 + |(a,a)| \times |[(a,a)]|
+           \ar[l]_-{|inList|}
+\\
+     |[a]|   
+           \ar[u]_-{|(anaList (g))|}
+           \ar[r]^-{|g|}
+&
+     1 + |(a,a)| \times |[a]|
+           \ar[u]^{|1+id >< (anaList (g))|}
+}
+\end{eqnarray*}
+
+Daqui conseguimos concluir que, para o caso em que a lista não fosse vazia, teriámos que criar uma função auxiliar, que nos permitisse agrupar apenas os dois primeiros elementos da lista, e de seguida, aplicá-la à cauda da lista. Assim sendo, criamos então a função \emph{pairFirstTwo}, que será aplicada ao resultado de cons, que é, neste caso, a lista recebida como argumento. Para evitar que o último elemento seja repetido, criamos então a função \emph{f2} que vê se o tamanho da cauda da lista é igual a 1 e caso seja, descarta-a. Isto permite que, quando chegarmos ao caso em que a lista tenha apenas dois elementos, estes se juntem num par e o último elemento não fique repetido. 
 
 \begin{code}
 markMap :: [Pos] -> Map -> Map
-markMap l = cataList (either (const id) f2) (pairL l) where
-  f2 = undefined
+markMap l = cataList (either (const id) f2) (pairL l) where 
+     f2 :: ((Pos,Pos), Map -> Map) -> (Map -> Map)
+     f2 (((x1,y1), (x2,y2)),f) m = if (((!!) ((!!) m y1) x1) == Blocked)
+                                   then f m 
+                                   else subst(subst (toCell (x1,y1) (x2,y2)) x1 ((!!) (f m) y1)) y1 (f m) 
 \end{code}
+
+Começamos por desenhar o diagrama do catamorfismo correspondente à função auxiliar.
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |[(Pos,Pos)]|
+           \ar[d]_-{|cataList g|}
+&
+    |1 + (Pos,Pos) >< [(Pos,Pos)]|
+           \ar[d]^{|id + id >< (cataNat g)|}
+           \ar[l]_-{|inList|}
+\\
+     |f|
+&
+     |1 + ((Pos,Pos),f)|
+           \ar[l]^-{|g = either (const id) f2|}
+}
+\end{eqnarray*}
+
+Olhando para o diagrama acima é então possível perceber que \emph{f2} receberá como argumento um par. Do lado esquerdo está presente um par de posições, correspondente ao primeiro elemento da lista original e, do lado direito uma função que permitirá alterar o mapa com as posições presentes na cauda da lista.
+
+Tendo a função auxiliar o tipo |[(Pos,Pos)] -> Map -> Map|, é então possível concluir que \emph{f} terá o tipo |Map -> Map| e, consequentemente, \emph{f2} o tipo |((Pos,Pos), Map -> Map) -> (Map -> Map)|.
+
+Para a implementação de \emph{f2} utilizamos então a função auxiliar \emph{subst}, que nos permite susbtituir no mapa alterado pela função \emph{f}, o resultado da função \emph{toCell} aplicada às posições que se encontram no início da lista. É tida em causa a situação em que nos encontramos numa célula que está bloqueada, sendo que neste caso não fazemos qualquer tipo de alteração ao mapa.
 
 \begin{code}
 scout :: Map -> Pos -> Pos -> Int -> [[Pos]]
@@ -1266,7 +1493,7 @@ Analogamente, a lista correspondente ao lado direito
 dos pares em (|pairL l|) é a lista original |l| a menos do primeiro elemento:
 
 \begin{code}
-prop_reconst l = undefined
+prop_reconst l = (l /= [] && (length l /= 1) && init l == (map p1 (pairL l)) && tail l == (map p2 (pairL l))) || (length l == 1 && l == (map p1 (pairL l)) && l == (map p2 (pairL l))) || l == []
 \end{code}
 \end{propriedade}
 
